@@ -2674,6 +2674,20 @@ NOTE: The *Export Patient Data* button is visible only to users whose group has 
 permission (see the _Administrator's Guide_, chapter _GDPR - Data Portability_). By default only the *admin* group
 holds it.
 
+=== 8.13 View Full Record (GDPR)
+
+Open Hospital can display, in a single read-only view, all the data recorded for a single patient (personal record,
+admissions, OPD visits, laboratory exams, therapies, operations, vaccines, examinations and bills), to support the
+right of access established by Article 15 of the GDPR.
+
+To open it, highlight the patient in the *_Patient Browser_* window and press the *View Full Record* button: a dialog
+opens with one tab per data category, each shown as a read-only table. The same view is also available from the patient
+details view of the Web UI.
+
+NOTE: The *View Full Record* button is visible only to users whose group has been granted the *patient.full_record*
+permission (see the _Administrator's Guide_, chapter _GDPR - Right of Access_). By default only the *admin* group
+holds it.
+
 <<<
 
 [#statistics]

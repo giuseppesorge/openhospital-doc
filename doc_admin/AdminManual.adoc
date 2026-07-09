@@ -2616,3 +2616,71 @@ requested, must be extracted separately:
 * patient consensus records;
 * anamnesis (patient history);
 * DICOM images.
+
+<<<
+
+== 10 GDPR - Right of Access (Art. 15)
+
+=== 10.1 Legal basis
+
+Article 15 of the EU General Data Protection Regulation (GDPR) grants data subjects the right to obtain confirmation as to
+whether personal data concerning them are being processed and, where that is the case, access to that personal data.
+To support this right, Open Hospital can display, for a single patient, the patient record together with all the clinical
+and administrative records connected to it, in a read-only view grouped by category.
+
+=== 10.2 The patient.full_record permission
+
+The full-record view is protected by a dedicated permission named *patient.full_record*.
+It applies to all channels: the GUI button, the REST API endpoint and the Web UI button are only available to users
+belonging to a group that holds this permission.
+
+A fresh installation (or a demo database) grants *patient.full_record* to the *admin* group only.
+
+To grant the permission to another user group, use the permission editor in the Web UI (_Settings_ -> _User Groups_),
+or run the following SQL statement on the database (example for the group `doctor`):
+
+[source,shell]
+----
+MariaDB> INSERT INTO oh_grouppermission (GP_ID, GP_UG_ID_A, GP_P_ID_A, GP_ACTIVE)
+	 SELECT (SELECT MAX(g.GP_ID) + 1 FROM oh_grouppermission g), 'doctor', p.P_ID_A, '1'
+	 FROM oh_permissions p WHERE p.P_NAME = 'patient.full_record';
+----
+
+NOTE: The statement looks the permission up by name instead of using a hard-coded numeric ID, so it works regardless
+of the actual `P_ID_A` value assigned on your installation.
+
+=== 10.3 View procedure
+
+The full-record view can be opened from three channels; all of them require the *patient.full_record* permission.
+
+*Desktop GUI (Java client)*
+
+. Open the *_Patient Browser_* window and select the patient;
+. press the *View Full Record* button;
+. a read-only dialog opens with one tab per data category: the patient master record as a field/value table, and each
+linked collection as its own table.
+
+*REST API*
+
+The API exposes a dedicated endpoint:
+
+[source,shell]
+----
+GET /patients/{code}/full-record
+----
+
+* the aggregate is returned as JSON;
+* the authenticated user must hold the *patient.full_record* permission, otherwise the request is rejected with HTTP 403;
+* if no patient exists with the given code, the endpoint returns HTTP 404.
+
+*Web UI*
+
+In the patient details view, users with the *patient.full_record* permission see a *View Full Record* button that opens a
+read-only, tab-per-category dialog of the same aggregate.
+
+=== 10.4 Displayed data
+
+The view shows the same aggregate produced for the data-portability export (see the previous chapter): the patient master
+record and the linked `admissions`, `opds`, `laboratories`, `therapies`, `operations`, `vaccines`, `examinations`,
+`bills`, `billItems` and `billPayments`. Empty categories are shown as an empty table. Technical bookkeeping fields (the
+creation/modification audit columns, the soft-delete and the optimistic-lock markers) are hidden from the view.
