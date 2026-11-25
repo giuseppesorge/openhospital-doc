@@ -10,7 +10,7 @@ on:
       - 'OP-1582-**'
     paths-ignore:
       - 'tutorials/portable/**'
-      - '.github/workflows/tutorial-portable.yml'
+      - '.github/workflows/tutorial-portable*.yml'
   workflow_dispatch:
     inputs:
       ref:

@@ -168,11 +168,12 @@ def run(ver, out):
     r.start()
     r.caption('Open Hospital on Windows: download, install and start the portable package.', 3)
 
-    r.caption('Open Microsoft Edge and go to open-hospital.org.', 0.5)
+    r.caption('Open Microsoft Edge from the desktop and go to open-hospital.org.', 0.5)
     taskbar = uia.window(class_name='Shell_TrayWnd')
-    # the Edge shortcut of the taskbar has a debugging port (see the workflow): the page is followed through it,
+    # the Edge icon on the desktop has a debugging port (see the workflow): the page is followed through it,
     # because Edge does not show the content of the page to UI Automation
-    click(find(taskbar, 10, title_re='.*Edge.*', control_type='Button', found_index=0))
+    desktop = uia.window(title='Program Manager')
+    click(find(desktop, 10, title='Microsoft Edge', control_type='ListItem'), double=True)
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         def connect():
