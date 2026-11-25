@@ -249,7 +249,7 @@ def run(ver, out):
     r.caption('Right-click the package and choose Extract All.', 0.5)
     item = find(explorer, 30, title_re=re.escape(pkg) + r'(\.zip)?', control_type='ListItem')
     click(item, button='right')
-    click(find(uia, 15, title_re='Extract All.*', control_type='MenuItem'))
+    click(find(explorer, 15, title_re='Extract All.*', control_type='MenuItem', found_index=0))  # the menu lives in the window
     dialog = window('.*Extract Compressed.*', 30)
     time.sleep(1.5)
     r.caption('Click Extract. It takes a minute.', 0.5)
