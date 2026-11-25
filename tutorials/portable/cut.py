@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Shortens the waits of a recorded tutorial to a few seconds and burns the captions in.
+"""Shortens the waits of a recorded tutorial to a few seconds and burns the captions in, on a black band under
+the screen so they never cover it.
 
 Usage: cut.py raw.mp4 captions.vtt waits.txt out.mp4 out.vtt [pointer.txt]
 waits.txt has one wait per line, "start end" in seconds, as written by the recorder. Of each wait the first
@@ -15,7 +16,8 @@ import tempfile
 HEAD, TAIL = 2.5, 1.5
 # an arrow like the Windows one, about 12x19 pixels, white with a black border
 ARROW = 'm 0 0 l 0 17 l 4 13 l 7 19 l 10 18 l 7 12 l 12 12'
-STYLE = "FontName=DejaVu Sans,FontSize=15,BorderStyle=4,BackColour=&H30000000,Outline=6,Shadow=0,MarginV=40"
+BAND = 120  # pixels added under the screen for the captions
+STYLE = "FontName=DejaVu Sans,FontSize=12,BorderStyle=1,Outline=0,Shadow=0,MarginV=5,MarginL=10,MarginR=10"
 
 
 def seconds(s):
@@ -86,7 +88,7 @@ def main():
             drawn = f'subtitles={ass},'
         parts = ''.join(f'[0:v]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[p{i}];' for i, (a, b) in enumerate(keep))
         graph = (parts + ''.join(f'[p{i}]' for i in range(len(keep))) + f'concat=n={len(keep)}:v=1:a=0,' + drawn
-                 + f"subtitles={srt}:force_style='{STYLE}'[v]")
+                 + f'pad=iw:ih+{BAND}:0:0:black,' + f"subtitles={srt}:force_style='{STYLE}'[v]")
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', src, '-filter_complex', graph, '-map', '[v]',
                         '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', out], check=True)
     print(f'{src}: {duration:.0f}s -> {moved(duration):.0f}s, {len(cuts)} waits shortened')
