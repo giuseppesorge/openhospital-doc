@@ -18,7 +18,8 @@ on:
 
 jobs:
   record:
-    runs-on: ubuntu-latest
+    # Ubuntu 22.04: the latest version the portable package is tested on (OH-README)
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v7
@@ -27,12 +28,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg xvfb x11-xserver-utils dbus-x11 xdotool wmctrl \
-            xfce4 xfconf xfwm4 xfce4-panel xfce4-terminal thunar thunar-archive-plugin xarchiver xfdesktop4 tesseract-ocr fonts-dejavu libaio1t64
-          # the MariaDB of the portable package looks for the old name of libaio
-          sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+            xfce4 xfconf xfwm4 xfce4-panel xfce4-terminal thunar thunar-archive-plugin xarchiver xfdesktop4 tesseract-ocr fonts-dejavu
           # the runner has MySQL installed: its /etc/mysql/my.cnf (user=mysql) is read by mysql_install_db too
           sudo mv /etc/mysql /etc/mysql.runner
-          sudo pip3 install --break-system-packages -q playwright
+          sudo pip3 install -q playwright
 
       - name: Clean user with an XFCE session
         run: |
