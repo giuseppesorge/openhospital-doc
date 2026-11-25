@@ -286,4 +286,11 @@ if __name__ == '__main__':
                         os.path.join(out, 'failed.png')])
         with open(os.path.join(out, 'windows.txt'), 'w', encoding='utf-8') as f:
             f.write('\n'.join(top_titles()))
+            for w in uia.windows():  # what UI Automation sees, to fix the names in the script
+                try:
+                    f.write(f'\n\n== {w.window_text()}\n')
+                    for e in w.descendants()[:600]:
+                        f.write(f'{e.element_info.control_type}\t{e.window_text()[:120]!r}\n')
+                except Exception as e:
+                    f.write(f'error {e}\n')
         raise
