@@ -27,7 +27,19 @@ jobs:
         shell: powershell
         run: |
           choco install ffmpeg -y --no-progress | Out-Null
-          pip install -q pywinauto
+          pip install -q pywinauto playwright
+          # file names with their extension, so oh.bat is told apart from oh.ps1 and the oh folder
+          Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' HideFileExt 0
+          # the Edge shortcuts open Edge with a debugging port and an own profile (needed for the port)
+          $sh = New-Object -ComObject WScript.Shell
+          $links = Get-ChildItem -Recurse -Filter '*Edge*.lnk' -ErrorAction SilentlyContinue `
+            "$env:APPDATA\Microsoft\Internet Explorer\Quick Launch", "$env:PUBLIC\Desktop", "$env:USERPROFILE\Desktop"
+          foreach ($l in $links) {
+            $k = $sh.CreateShortcut($l.FullName)
+            $k.Arguments = "--remote-debugging-port=9222 --user-data-dir=$env:LOCALAPPDATA\EdgeTutorial --no-first-run about:blank"
+            $k.Save()
+            Write-Host "shortcut: $($l.FullName)"
+          }
           # Edge without first-run pages, news or questions on downloads
           $edge = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
           New-Item -Path $edge -Force | Out-Null

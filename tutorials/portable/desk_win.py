@@ -170,48 +170,65 @@ def run(ver, out):
 
     r.caption('Open Microsoft Edge and go to open-hospital.org.', 0.5)
     taskbar = uia.window(class_name='Shell_TrayWnd')
-    edge = taskbar.child_window(title_re='.*Edge.*', control_type='Button')
-    if edge.exists(timeout=2):
-        click(edge.wrapper_object())
-    else:  # not pinned: from the Start menu
-        keys('{VK_LWIN}')
+    # the Edge shortcut of the taskbar has a debugging port (see the workflow): the page is followed through it,
+    # because Edge does not show the content of the page to UI Automation
+    click(find(taskbar, 10, title_re='.*Edge.*', control_type='Button', found_index=0))
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        def connect():
+            try:
+                return p.chromium.connect_over_cdp('http://127.0.0.1:9222')
+            except Exception:
+                return None
+        cdp = wait(connect, 60, 'Edge with the debugging port')
+        ctx = cdp.contexts[0]
+        page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        # Playwright takes over the downloads when it connects: give them back to Edge
+        cdp.new_browser_cdp_session().send('Browser.setDownloadBehavior', {'behavior': 'default'})
+        browser = window('.*Microsoft.*Edge.*', 30)
+        browser.set_focus()
+        time.sleep(1)
+        browser.maximize()
         time.sleep(1.5)
-        slow('edge')
+        keys('^l')
+        slow('www.open-hospital.org')
         keys('{ENTER}')
-    browser = window('.*Microsoft.*Edge.*', 60)
-    browser.set_focus()
-    time.sleep(1)
-    browser.maximize()
-    time.sleep(1.5)
-    keys('^l')
-    slow('www.open-hospital.org')
-    keys('{ENTER}')
-    menu = find(browser, 60, title_re='(?i)download', control_type='Hyperlink', found_index=0)
-    time.sleep(2)
-    close = browser.child_window(title_re='[×xX]', control_type='Hyperlink', found_index=0)
-    if close.exists(timeout=2):
-        click(close.wrapper_object())
-    r.caption('Click DOWNLOAD.')
-    click(menu)
-    name = f'{pkg}.zip'
-    r.caption('Under the latest release, choose the portable package for Windows, 64 bit.', 0.5)
-    text = find(browser, 60, title_re=re.escape(name) + '.*', control_type='Text', found_index=0)
-    move(W // 2, H // 2)
-    for _ in range(80):  # scroll with the wheel until the link is well inside the window
-        b, t = browser.rectangle(), text.rectangle()
-        if b.top + 200 < t.top < b.bottom - 150:
-            break
-        user32.mouse_event(0x0800, 0, 0, ctypes.c_uint(-120).value, 0)
-        time.sleep(0.25)
-    time.sleep(1)
-    click(text)
-    target = os.path.join(downloads, name)
-    wait(lambda: os.path.exists(target) and not any(f.endswith('.crdownload') for f in os.listdir(downloads)), 600, 'download')
-    time.sleep(2)
-    r.caption('The package is in the Downloads folder. Close the browser.', 2)
-    browser.set_focus()
-    keys('%{F4}')
-    time.sleep(2)
+        page.wait_for_load_state('domcontentloaded')
+        time.sleep(3)
+
+        def at(locator):
+            """Screen position of the first line of an element of the page."""
+            box = locator.evaluate('e => { const r = e.getClientRects()[0]; return {x: r.x, y: r.y, width: r.width, height: r.height}; }')
+            sx, sy, ow, oh, iw, ih, dpr = page.evaluate('[screenX, screenY, outerWidth, outerHeight, innerWidth, innerHeight, devicePixelRatio]')
+            return (round((sx + (ow - iw) / 2 + box['x'] + box['width'] / 2) * dpr),
+                    round((sy + oh - ih + box['y'] + box['height'] / 2) * dpr))
+
+        cookie = page.locator('.iubenda-cs-close-btn').first
+        if cookie.count() and cookie.is_visible():
+            click(at(cookie))
+        r.caption('Click DOWNLOAD.')
+        click(at(page.locator('header a[href*="/download"]:visible').first))
+        page.wait_for_load_state('domcontentloaded')
+        time.sleep(3)
+        name = f'{pkg}.zip'
+        link = page.locator(f'a[href$="{name}"]').first
+        r.caption('Under the latest release, choose the portable package for Windows, 64 bit.', 0.5)
+        move(W // 2, H // 2)
+        for _ in range(80):  # scroll with the wheel until the link is well inside the window
+            box = link.bounding_box()
+            if box and 150 < box['y'] < page.evaluate('innerHeight') - 150:
+                break
+            user32.mouse_event(0x0800, 0, 0, ctypes.c_uint(-120).value, 0)
+            time.sleep(0.25)
+        time.sleep(1)
+        click(at(link))
+        target = os.path.join(downloads, name)
+        wait(lambda: os.path.exists(target) and not any(f.endswith('.crdownload') for f in os.listdir(downloads)), 600, 'download')
+        time.sleep(2)
+        r.caption('The package is in the Downloads folder. Close the browser.', 2)
+        browser.set_focus()
+        keys('%{F4}')
+        time.sleep(2)
 
     r.caption('Open File Explorer, then Downloads.', 0.5)
     files = taskbar.child_window(title_re='.*File Explorer.*', control_type='Button')
@@ -238,16 +255,9 @@ def run(ver, out):
     click(find(folder, 30, title=pkg, control_type='ListItem'), double=True)
     find(folder, 30, title_re='RELEASE_NOTES.*', control_type='ListItem')
     time.sleep(1.5)
-    r.caption('Type cmd in the address bar and press Enter: a command prompt opens in this folder.', 0.5)
-    folder.set_focus()
-    keys('%d')
-    slow('cmd')
-    keys('{ENTER}')
-    window('.*cmd.exe.*', 30).set_focus()
-    time.sleep(1.5)
-    r.caption('Start Open Hospital with oh.bat.')
-    slow('oh.bat')
-    keys('{ENTER}')
+    r.caption('Double-click oh.bat.', 0.5)
+    click(find(folder, 30, title='oh.bat', control_type='ListItem'), double=True)
+    window('.*(oh.bat|cmd.exe|PowerShell|powershell).*', 60).set_focus()
     time.sleep(4)
     r.caption('The menu shows version, language and mode. Press Enter to start.', 3)
     keys('{ENTER}')
@@ -271,7 +281,7 @@ def run(ver, out):
         pass
     swing('OH', 60)
     time.sleep(1)
-    r.caption('Open Hospital is running. Next time, open the folder and start oh.bat again.', 5)
+    r.caption('Open Hospital is running. Next time, open the folder and double-click oh.bat again.', 5)
     r.stop('windows-portable')
     with open(os.path.join(out, 'windows.txt'), 'w', encoding='utf-8') as f:
         f.write('\n'.join(top_titles()))
