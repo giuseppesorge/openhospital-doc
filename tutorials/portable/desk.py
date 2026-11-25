@@ -198,14 +198,11 @@ def linux_portable(d, ver):
         xy = at(link)
         print('link', link.bounding_box(), 'screen', xy, flush=True)
         d.click(xy)
-        for _ in range(20):
+        for _ in range(3):
             if got:
                 break
             time.sleep(1)
-        d.shot(f'{d.out}/afterclick.png')
-        print('pages', [pg.url for pg in ctx.pages], 'got', len(got), flush=True)
-        if not got:
-            print('no download from the real click, trying the click of Playwright', flush=True)
+        if not got:  # the real click starts a download of Chrome that Playwright does not see: repeat it through Playwright
             link.click()
             for _ in range(60):
                 if got:
@@ -220,14 +217,19 @@ def linux_portable(d, ver):
 
     d.caption('Open your home folder, then Downloads.', 0.5)
     d.click('Home', double=True)
-    d.window('.*user.*', 30)
-    time.sleep(1.5)
+    d.window('user - Thunar', 30)
+    time.sleep(1)
+    d.key('alt+F10')  # maximize
+    time.sleep(1)
     d.click('Downloads', double=True)
     time.sleep(1.5)
     d.caption('Right-click the package and choose Extract Here.', 0.5)
     d.click('OpenHospital', button=3)
     d.click('Extract Here')
-    d.find(pkg[:24], timeout=180)
+    for _ in range(180):  # the name wraps on several lines under the icon: wait on the disk
+        if os.path.exists(f'{downloads}/{pkg}/oh.sh') and subprocess.run(['pgrep', 'xarchiver'], capture_output=True).returncode:
+            break
+        time.sleep(1)
     time.sleep(2)
     d.caption('Open the new folder.', 0.5)
     d.click(d.find('OpenHospital'), double=True)
