@@ -122,6 +122,8 @@ def ocr(text, timeout=20, out='.'):
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-f', 'gdigrab', '-i', 'desktop', '-frames:v', '1',
                         '-vf', 'scale=iw*2:ih*2,format=gray', '-y', shot], check=True)
         tsv = subprocess.run([TESSERACT, shot, '-', '--psm', '11', 'tsv'], capture_output=True).stdout.decode(errors='replace')
+        with open(os.path.join(out, 'ocr.tsv'), 'w', encoding='utf-8') as f:  # what was read, to check
+            f.write(tsv)
         words = [w for w in csv.DictReader(io.StringIO(tsv), delimiter='\t', quoting=csv.QUOTE_NONE)
                  if (w.get('text') or '').strip() and float(w['conf']) > 30]
         for i in range(len(words)):
@@ -331,19 +333,25 @@ def run(ver, out):
     time.sleep(2)
     activate('Login')
     r.caption('Log in. The first user is admin, with password admin.')
-    x, y = ocr('User:', out=out)  # the fields are on the right of their labels
-    click((x + 110, y))
+    # the Login dialog has a fixed layout: fields and button by their place in its frame
+    rect = ctypes.wintypes.RECT()
+    user32.GetWindowRect(user32.FindWindowW(None, 'Login'), ctypes.byref(rect))
+    left, top, width, bottom = rect.left, rect.top, rect.right - rect.left, rect.bottom
+    click((left + int(width * 0.6), top + 44))
     slow('admin')
-    x, y = ocr('Password:', out=out)
-    click((x + 110, y))
+    click((left + int(width * 0.6), top + 69))
     slow('admin')
     time.sleep(0.5)
-    click(ocr('Submit', out=out))
+    click((left + int(width * 0.39), bottom - 18))
     try:
         swing('Help us improve Open Hospital', 40)
         time.sleep(1.5)
         r.caption('Open Hospital asks whether it may send anonymous usage data. Here we choose Ask me later.', 2)
-        click(ocr('Ask me later', out=out))
+        try:
+            click(ocr('Ask me later', out=out))
+        except RuntimeError:
+            activate('Help us improve Open Hospital')
+            keys('%{F4}')
     except RuntimeError:
         pass
     swing('OH', 60)
