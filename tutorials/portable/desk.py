@@ -205,10 +205,12 @@ def linux_portable(d, ver):
         else:
             raise RuntimeError('the download did not finish')
         time.sleep(2)
-        d.caption('The package is in the Downloads folder.', 2)
+        d.caption('The package is in the Downloads folder. Close the browser.', 2)
+        d.key('ctrl+shift+w')
+        time.sleep(2)
 
     d.caption('Open your home folder, then Downloads.', 0.5)
-    d.click('Home', double=True)
+    d.click(d.find('Home', region=(0, 30, 200, 300)), double=True)  # the icon on the desktop
     d.window('user - Thunar', 30)
     time.sleep(1)
     d.key('alt+F10')  # maximize
