@@ -220,6 +220,16 @@ def run(ver, out):
     for t in top_titles():
         if 'HostedComputeAgent' in t:
             user32.ShowWindow(user32.FindWindowW(None, t), 6)  # SW_MINIMIZE
+        if t == 'System Properties':  # the runner warns about its temporary paging file
+            user32.PostMessageW(user32.FindWindowW(None, t), 0x0010, 0, 0)  # WM_CLOSE
+    # the workflow removed the icons of the runner tools: the desktop shows it only after a refresh
+    ctypes.windll.shell32.SHChangeNotify(0x08000000, 0, None, None)  # SHCNE_ASSOCCHANGED
+    desktop = uia.window(title='Program Manager')
+    icons = lambda: sorted(i.window_text() for i in desktop.descendants(control_type='ListItem'))
+    try:
+        wait(lambda: set(icons()) <= {'Recycle Bin', 'Microsoft Edge'} and 'System Properties' not in top_titles(), 30, 'clean desktop')
+    except RuntimeError:
+        print('desktop not clean:', icons(), top_titles())
     time.sleep(1)
     r = Rec(out)
     r.start()
@@ -229,7 +239,6 @@ def run(ver, out):
     taskbar = uia.window(class_name='Shell_TrayWnd')
     # the Edge icon on the desktop has a debugging port (see the workflow): the page is followed through it,
     # because Edge does not show the content of the page to UI Automation
-    desktop = uia.window(title='Program Manager')
     click(find(desktop, 10, title='Microsoft Edge', control_type='ListItem'), double=True)
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
