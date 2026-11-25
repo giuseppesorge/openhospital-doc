@@ -53,8 +53,8 @@ jobs:
           Set-ItemProperty $edge RestoreOnStartup 4 -Type DWord
           New-Item -Path "$edge\RestoreOnStartupURLs" -Force | Out-Null
           Set-ItemProperty "$edge\RestoreOnStartupURLs" 1 'about:blank'
-          # no firewall question when MariaDB and Java open their ports
-          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+          # the firewall stays on: if it asks about MariaDB or Java, the video shows it (OH-README)
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True
           Get-Process ServerManager -ErrorAction SilentlyContinue | Stop-Process -Force
           try { Set-DisplayResolution -Width 1280 -Height 800 -Force } catch { Write-Host "resolution unchanged: $_" }
 

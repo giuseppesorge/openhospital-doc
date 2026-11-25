@@ -263,13 +263,28 @@ def run(ver, out):
     find(folder, 30, title_re='RELEASE_NOTES.*', control_type='ListItem')
     time.sleep(1.5)
     r.caption('Double-click oh.bat.', 0.5)
-    click(find(folder, 30, title='oh.bat', control_type='ListItem'), double=True)
+    def launcher():  # oh.bat, oh.ps1 and the oh folder can all show as "oh": the type tells them apart
+        for item in folder.descendants(control_type='ListItem'):
+            if item.window_text() in ('oh', 'oh.bat') and any('Batch' in c.window_text() for c in item.descendants()):
+                return item
+    click(wait(launcher, 30, 'oh.bat'), double=True)
     window('.*(oh.bat|cmd.exe|PowerShell|powershell).*', 60).set_focus()
     time.sleep(4)
     r.caption('The menu shows version, language and mode. Press Enter to start.', 3)
     keys('{ENTER}')
     r.caption('The first start creates the database, then the application opens.', 0)
-    swing('Login', 600)
+    end = time.time() + 600
+    while 'Login' not in top_titles():  # the firewall may ask about MariaDB or Java on the way
+        alert = next((t for t in top_titles() if t.startswith('Windows Security')), None)
+        if alert:
+            time.sleep(1)
+            r.caption('Windows asks whether Open Hospital may use the network. Click Allow.', 1)
+            dialog = window(re.escape(alert), 10)
+            click(find(dialog, 15, title_re='Allow.*', control_type='Button', found_index=0))
+            r.caption('The first start creates the database, then the application opens.', 0)
+        if time.time() > end:
+            raise RuntimeError('not found: window Login')
+        time.sleep(1)
     time.sleep(2)
     activate('Login')
     r.caption('Log in. The first user is admin, with password admin.')
