@@ -154,7 +154,7 @@ def linux_portable(d, ver):
         d.caption('Open the web browser and go to open-hospital.org.', 0.5)
         ctx = p.chromium.launch_persistent_context(os.path.expanduser('~/.tutorial-chrome'), channel='chrome', headless=False,
                                                    no_viewport=True, accept_downloads=True,
-                                                   args=['--start-maximized', '--no-first-run', '--no-default-browser-check'])
+                                                   args=['--start-maximized', '--no-first-run', '--no-default-browser-check', '--test-type'])
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         time.sleep(3)
         d.key('ctrl+l')
@@ -179,11 +179,26 @@ def linux_portable(d, ver):
         time.sleep(3)
         link = page.locator(f'a[href$="{pkg}.tar.gz"]').first
         d.caption('Under the latest release, choose the portable package for Linux, 64 bit.', 0.5)
-        link.scroll_into_view_if_needed()
-        time.sleep(1.5)
-        with page.expect_download(timeout=600_000) as dl:
-            d.click(at(link))
-        dl.value.save_as(f'{downloads}/{pkg}.tar.gz')
+        d.move(640, 500)
+        for _ in range(60):  # scroll with the wheel until the link is well inside the window
+            box = link.bounding_box()
+            if box and 150 < box['y'] < page.evaluate('innerHeight') - 150:
+                break
+            run('xdotool', 'click', '5')
+            time.sleep(0.25)
+        time.sleep(1)
+        got = []  # the link may open a new tab: listen to every page
+        ctx.on('page', lambda pg: pg.on('download', got.append))
+        for pg in ctx.pages:
+            pg.on('download', got.append)
+        d.click(at(link))
+        for _ in range(600):
+            if got:
+                break
+            time.sleep(1)
+        if not got:
+            raise RuntimeError('the download did not start')
+        got[0].save_as(f'{downloads}/{pkg}.tar.gz')
         time.sleep(2)
         d.caption('The package is in the Downloads folder.', 1)
         ctx.close()
