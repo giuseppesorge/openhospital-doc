@@ -49,7 +49,7 @@ jobs:
           # the Web Browser launcher of the panel opens Google Chrome with a debugging port, so the script can follow
           # the pages while the downloads stay the normal ones of Chrome
           asuser mkdir -p /home/user/.local/share/xfce4/helpers /home/user/.config/xfce4
-          printf '[Desktop Entry]\nType=X-XFCE-Helper\nX-XFCE-Category=WebBrowser\nName=Google Chrome\nIcon=google-chrome\nX-XFCE-Binaries=google-chrome;\nX-XFCE-Commands=google-chrome --remote-debugging-port=9222 --user-data-dir=/home/user/.config/chrome-tutorial --no-first-run --no-default-browser-check --start-maximized;\nX-XFCE-CommandsWithParameter=google-chrome --remote-debugging-port=9222 --user-data-dir=/home/user/.config/chrome-tutorial --no-first-run --no-default-browser-check --start-maximized "%%s";\n' \
+          printf '[Desktop Entry]\nType=X-XFCE-Helper\nX-XFCE-Category=WebBrowser\nName=Google Chrome\nIcon=google-chrome\nX-XFCE-Binaries=google-chrome;\nX-XFCE-Commands=google-chrome --remote-debugging-port=9222 --user-data-dir=/home/user/.config/chrome-tutorial --no-first-run --no-default-browser-check --start-maximized about:blank;\nX-XFCE-CommandsWithParameter=google-chrome --remote-debugging-port=9222 --user-data-dir=/home/user/.config/chrome-tutorial --no-first-run --no-default-browser-check --start-maximized "%%s";\n' \
             | asuser tee /home/user/.local/share/xfce4/helpers/custom-WebBrowser.desktop > /dev/null
           echo 'WebBrowser=custom-WebBrowser' | asuser tee /home/user/.config/xfce4/helpers.rc > /dev/null
           # default panel, without the question at the first start
