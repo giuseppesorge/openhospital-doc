@@ -38,16 +38,20 @@ jobs:
         run: |
           sudo useradd -m -s /bin/bash user
           echo "PS1='user:\w\$ '" | sudo tee -a /home/user/.bashrc > /dev/null
+          uid=$(id -u user)
+          sudo install -d -o user -m 700 /run/user/$uid
+          # runs a command as user with a clean environment (the one of the runner points to /home/runner)
+          printf '#!/bin/sh\nexec sudo -u user env -i HOME=/home/user USER=user LOGNAME=user SHELL=/bin/bash LANG=C.UTF-8 PATH=/usr/local/bin:/usr/bin:/bin DISPLAY=:99 XDG_RUNTIME_DIR=/run/user/%s "$@"\n' $uid \
+            | sudo tee /usr/local/bin/asuser > /dev/null
+          sudo chmod +x /usr/local/bin/asuser
           # default panel, without the question at the first start
-          sudo -u user mkdir -p /home/user/.config/xfce4/xfconf/xfce-perchannel-xml
-          sudo -u user cp /etc/xdg/xfce4/panel/default.xml /home/user/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+          asuser mkdir -p /home/user/.config/xfce4/xfconf/xfce-perchannel-xml
+          asuser cp /etc/xdg/xfce4/panel/default.xml /home/user/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
           Xvfb :99 -screen 0 1280x800x24 &
           sleep 2
           DISPLAY=:99 xhost +SI:localuser:user
-          # the pieces of an XFCE session in one D-Bus session (xfce4-session alone does not find xfconfd here)
-          sudo -u user -H env DISPLAY=:99 dbus-run-session -- sh -c \
-            'xfwm4 & sleep 1; xfce4-panel & xfdesktop & thunar --daemon & wait' > /tmp/xfce.log 2>&1 &
-          sleep 10
+          asuser dbus-launch --exit-with-session startxfce4 > /tmp/xfce.log 2>&1 &
+          sleep 12
 
       - name: Record
         env:
@@ -55,7 +59,7 @@ jobs:
         run: |
           # the home of the runner is closed to other users: script and output go through /srv/tut
           sudo mkdir -p /srv/tut && sudo cp tutorials/portable/desk.py /srv/tut/ && sudo chown -R user /srv/tut
-          sudo -u user -H env DISPLAY=:99 python3 /srv/tut/desk.py linux-portable "$VERSION" /srv/tut/out || status=$?
+          asuser python3 /srv/tut/desk.py linux-portable "$VERSION" /srv/tut/out || status=$?
           mkdir -p out && cp -r /srv/tut/out out/linux-portable
           exit ${status:-0}
 
