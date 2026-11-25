@@ -1,4 +1,5 @@
-# Records the tutorial on installing and starting the Linux portable package of a release (trial for OP-1582).
+# Records the tutorial on downloading, installing and starting the Linux portable package of a release
+# (trial for OP-1582): XFCE desktop under Xvfb, a clean user "user", real mouse and keyboard.
 
 name: Video tutorial, Linux portable
 
@@ -22,27 +23,36 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Xvfb, window manager, terminal and ffmpeg
+      - name: Install a desktop, OCR and ffmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg xvfb fluxbox xterm xdotool wmctrl bc fonts-dejavu libaio1t64
+          sudo apt-get install -y --no-install-recommends ffmpeg xvfb x11-xserver-utils dbus-x11 xdotool wmctrl \
+            xfce4 xfce4-terminal thunar thunar-archive-plugin xarchiver xfdesktop4 tesseract-ocr fonts-dejavu libaio1t64
           # the MariaDB of the portable package looks for the old name of libaio
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           # the runner has MySQL installed: its /etc/mysql/my.cnf (user=mysql) is read by mysql_install_db too
           sudo mv /etc/mysql /etc/mysql.runner
+          sudo pip3 install --break-system-packages -q playwright
+
+      - name: Clean user with an XFCE session
+        run: |
+          sudo useradd -m -s /bin/bash user
+          echo "PS1='user:\w\$ '" | sudo tee -a /home/user/.bashrc > /dev/null
+          # default panel, without the question at the first start
+          sudo -u user mkdir -p /home/user/.config/xfce4/xfconf/xfce-perchannel-xml
+          sudo -u user cp /etc/xdg/xfce4/panel/default.xml /home/user/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+          Xvfb :99 -screen 0 1280x800x24 &
+          sleep 2
+          DISPLAY=:99 xhost +SI:localuser:user
+          sudo -u user -H env DISPLAY=:99 dbus-launch --exit-with-session startxfce4 > /tmp/xfce.log 2>&1 &
+          sleep 10
 
       - name: Record
         env:
           VERSION: ${{ inputs.version || '1.15.2' }}
         run: |
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1600x1000x24 &
-          sleep 2
-          mkdir -p ~/.fluxbox && echo 'exec fluxbox' > ~/.fluxbox/startup
-          fluxbox > /dev/null 2>&1 &
-          sleep 3
-          pkill -x xmessage || true
-          tutorials/portable/linux-portable.sh "$VERSION" out/linux-portable
+          mkdir -p out && chmod 777 out
+          sudo -u user -H env DISPLAY=:99 python3 tutorials/portable/desk.py linux-portable "$VERSION" out/linux-portable
 
       - name: Add the music
         run: |
@@ -58,5 +68,4 @@ jobs:
           path: |
             videos
             out/linux-portable/*.png
-            out/linux-portable/windows.txt
-            out/linux-portable/*.log
+            /tmp/xfce.log
