@@ -52,10 +52,12 @@ jobs:
           docker run -d --name ohdb -p 3306:3306 \
             -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=oh -e MARIADB_USER=isf -e MARIADB_PASSWORD=isf123 \
             mariadb:10.6 --lower_case_table_names=1 --explicit_defaults_for_timestamp=OFF
-          for i in $(seq 60); do docker exec ohdb mariadb -uroot -proot -e 'select 1' oh >/dev/null 2>&1 && break; sleep 2; done
+          # TCP only: during its first start the image runs a temporary server without networking
+          sql='mariadb --protocol=tcp -h127.0.0.1 -uroot -proot oh'
+          for i in $(seq 60); do docker exec ohdb $sql -e 'select 1' >/dev/null 2>&1 && break; sleep 2; done
           docker cp ../oh-core/sql ohdb:/sql
-          docker exec ohdb sh -c 'cd /sql && mariadb -uroot -proot oh < create_all_demo.sql'
-          docker exec ohdb mariadb -uroot -proot -e 'select count(*) as patients from patient' oh
+          docker exec ohdb sh -c "cd /sql && $sql < create_all_demo.sql"
+          docker exec ohdb $sql -e 'select count(*) as patients from patient'
 
       - name: Build core, api and gui
         run: |
