@@ -40,7 +40,7 @@ key() { xdotool key "$@"; sleep 0.4; }
 # on failure keep a picture of the screen and close the recording
 trap 'ffmpeg -loglevel error -f x11grab -video_size "$size" -i "$DISPLAY" -frames:v 1 -y "$out/failed.png"; kill -INT "${rec:-0}" 2>/dev/null' ERR
 
-xterm -fa 'DejaVu Sans Mono' -fs 13 -geometry 110x34+40+30 -title Terminal &
+xterm -xrm 'XTerm*allowTitleOps: false' -fa 'DejaVu Sans Mono' -fs 13 -geometry 110x34+40+30 -title Terminal &
 waitwin Terminal
 xdotool search --name '^Terminal$' windowactivate --sync
 sleep 1
