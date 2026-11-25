@@ -265,8 +265,10 @@ def run(ver, out):
     r.caption('Double-click oh.bat.', 0.5)
     def launcher():  # oh.bat, oh.ps1 and the oh folder can all show as "oh": the type tells them apart
         for item in folder.descendants(control_type='ListItem'):
-            if item.window_text() in ('oh', 'oh.bat') and any('Batch' in c.window_text() for c in item.descendants()):
-                return item
+            if item.window_text() in ('oh', 'oh.bat'):
+                for cell in item.descendants():  # the cells are named after the column, the content is their value
+                    if cell.window_text() == 'Type' and 'Batch' in str(cell.legacy_properties().get('Value', '')):
+                        return item
     click(wait(launcher, 30, 'oh.bat'), double=True)
     window('.*(oh.bat|cmd.exe|PowerShell|powershell).*', 60).set_focus()
     time.sleep(4)
