@@ -38,7 +38,7 @@ typ() { xdotool type --delay 90 "$1"; sleep 0.4; }
 key() { xdotool key "$@"; sleep 0.4; }
 
 # on failure keep a picture of the screen and close the recording
-trap 'ffmpeg -loglevel error -f x11grab -video_size "$size" -i "$DISPLAY" -frames:v 1 -y "$out/failed.png"; kill -INT "${rec:-0}" 2>/dev/null' ERR
+trap 'cp "$work"/*/data/log/*.log "$out"/ 2>/dev/null; ffmpeg -loglevel error -f x11grab -video_size "$size" -i "$DISPLAY" -frames:v 1 -y "$out/failed.png"; kill -INT "${rec:-0}" 2>/dev/null' ERR
 
 xterm -xrm 'XTerm*allowTitleOps: false' -fa 'DejaVu Sans Mono' -fs 13 -geometry 110x34+40+30 -title Terminal &
 waitwin Terminal

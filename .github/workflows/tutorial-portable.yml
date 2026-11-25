@@ -25,7 +25,9 @@ jobs:
       - name: Install Xvfb, window manager, terminal and ffmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg xvfb fluxbox xterm xdotool wmctrl bc fonts-dejavu
+          sudo apt-get install -y --no-install-recommends ffmpeg xvfb fluxbox xterm xdotool wmctrl bc fonts-dejavu libaio1t64
+          # the MariaDB of the portable package looks for the old name of libaio
+          sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
 
       - name: Record
         env:
@@ -55,3 +57,4 @@ jobs:
             videos
             out/linux-portable/*.png
             out/linux-portable/windows.txt
+            out/linux-portable/*.log
