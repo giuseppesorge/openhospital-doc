@@ -188,9 +188,12 @@ def linux_portable(d, ver):
             time.sleep(0.25)
         time.sleep(1)
         got = []  # the link may open a new tab: listen to every page
-        ctx.on('page', lambda pg: pg.on('download', got.append))
+        def keep(download):
+            got.append(download)
+
+        ctx.on('page', lambda pg: pg.on('download', keep))
         for pg in ctx.pages:
-            pg.on('download', got.append)
+            pg.on('download', keep)
         d.click(at(link))
         for _ in range(600):
             if got:
