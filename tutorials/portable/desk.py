@@ -152,10 +152,10 @@ def linux_portable(d, ver):
 
     with sync_playwright() as p:
         d.caption('Open the web browser and go to open-hospital.org.', 0.5)
-        ctx = p.chromium.launch_persistent_context(os.path.expanduser('~/.tutorial-chrome'), channel='chrome', headless=False,
-                                                   no_viewport=True, accept_downloads=True,
-                                                   args=['--start-maximized', '--no-first-run', '--no-default-browser-check', '--test-type'])
-        page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        browser = p.chromium.launch(channel='chrome', headless=False,
+                                    args=['--start-maximized', '--no-first-run', '--no-default-browser-check', '--test-type'])
+        ctx = browser.new_context(no_viewport=True, accept_downloads=True)
+        page = ctx.new_page()
         time.sleep(3)
         d.key('ctrl+l')
         d.type('www.open-hospital.org')
@@ -165,7 +165,8 @@ def linux_portable(d, ver):
 
         def at(locator):
             """Screen position of an element of the page."""
-            box = locator.bounding_box()
+            # first line of the element: a link that wraps has an empty corner in the middle of its box
+            box = locator.evaluate('e => { const r = e.getClientRects()[0]; return {x: r.x, y: r.y, width: r.width, height: r.height}; }')
             sx, sy, ow, oh, iw, ih = page.evaluate('[screenX, screenY, outerWidth, outerHeight, innerWidth, innerHeight]')
             return (round(sx + (ow - iw) / 2 + box['x'] + box['width'] / 2),
                     round(sy + oh - ih + box['y'] + box['height'] / 2))
@@ -215,7 +216,7 @@ def linux_portable(d, ver):
         got[0].save_as(f'{downloads}/{pkg}.tar.gz')
         time.sleep(2)
         d.caption('The package is in the Downloads folder.', 1)
-        ctx.close()
+        browser.close()
 
     d.caption('Open your home folder, then Downloads.', 0.5)
     d.click('Home', double=True)
