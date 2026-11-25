@@ -122,7 +122,9 @@ def wait(fn, timeout, what):
 
 
 def window(title_re, timeout=60):
-    return wait(lambda: next((w for w in uia.windows() if re.fullmatch(title_re, w.window_text())), None), timeout, title_re)
+    """Top window whose title matches, as a specification (it can look for its children)."""
+    w = wait(lambda: next((w for w in uia.windows() if re.fullmatch(title_re, w.window_text())), None), timeout, title_re)
+    return uia.window(handle=w.handle)
 
 
 def find(parent, timeout=30, **kw):
