@@ -69,6 +69,7 @@ jobs:
         working-directory: ../oh-api/target
         run: |
           mkdir -p rsc
+          cp ../rsc/*.properties rsc/
           db='s/DBSERVER/localhost/g; s/DBPORT/3306/g; s/DBNAME/oh/g; s/DBUSER/isf/g; s/DBPASS/isf123/g'
           sed -e 's/JWT_TOKEN_SECRET/'"$(openssl rand -hex 48)"'/' -e 's/API_HOST/localhost/g' -e 's/API_PORT/8080/g' \
             -e 's/UI_HOST/localhost/g' -e 's/UI_PORT/5173/g' -e 's#OH_API_PID#/tmp/api.pid#' \
@@ -78,7 +79,7 @@ jobs:
           sed -e 's/OH_MODE/PRODUCTION/; s/OH_LANGUAGE/en/; s/YES_OR_NO/no/; s#OH_DOC_DIR#/tmp/ohdoc#; s/PHOTO_DIR/DB/' \
             ../rsc/settings.properties.dist > rsc/settings.properties
           nohup java -cp "openhospital-api-0.1.0.jar:rsc/:static/" org.springframework.boot.loader.launch.JarLauncher > /tmp/api.out 2>&1 &
-          for i in $(seq 90); do curl -s -o /dev/null http://localhost:8080/ && break; sleep 2; done
+          for i in $(seq 90); do curl -s -o /dev/null http://localhost:8080/ && break; kill -0 $! || { tail -40 /tmp/api.out; exit 1; }; sleep 2; done
           curl -s -o /dev/null -w 'api %{http_code}\n' http://localhost:8080/
 
       - name: Start web UI
