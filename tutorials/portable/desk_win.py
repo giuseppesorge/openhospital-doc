@@ -238,8 +238,10 @@ def run(ver, out):
     else:
         keys('{VK_LWIN down}e{VK_LWIN up}')
     explorer = window('.*(File Explorer|Quick access|This PC|Home).*', 30)
+    time.sleep(1)
+    explorer.maximize()
     time.sleep(1.5)
-    click(find(explorer, 20, title='Downloads', control_type='TreeItem', found_index=0))
+    click(find(explorer, 20, title_re=r'Downloads( \(pinned\))?', control_type='TreeItem', found_index=0))
     explorer = window('Downloads.*', 30)
     time.sleep(1.5)
     r.caption('Right-click the package and choose Extract All.', 0.5)

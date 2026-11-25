@@ -30,6 +30,9 @@ jobs:
           pip install -q pywinauto playwright
           # file names with their extension, so oh.bat is told apart from oh.ps1 and the oh folder
           Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' HideFileExt 0
+          # a desktop with Edge only: the other icons are tools of the runner
+          Get-ChildItem "$env:PUBLIC\Desktop", "$env:USERPROFILE\Desktop" -Filter '*.lnk' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notlike '*Edge*' } | Remove-Item -Force
           # the Edge shortcuts open Edge with a debugging port and an own profile (needed for the port)
           $sh = New-Object -ComObject WScript.Shell
           $links = Get-ChildItem -Recurse -Filter '*Edge*.lnk' -ErrorAction SilentlyContinue `
