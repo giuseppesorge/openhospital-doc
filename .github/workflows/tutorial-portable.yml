@@ -46,6 +46,12 @@ jobs:
           printf '#!/bin/sh\nexec sudo -u user env -i HOME=/home/user USER=user LOGNAME=user SHELL=/bin/bash LANG=C.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DISPLAY=:99 XDG_RUNTIME_DIR=/run/user/%s "$@"\n' $uid \
             | sudo tee /usr/local/bin/asuser > /dev/null
           sudo chmod +x /usr/local/bin/asuser
+          # the Web Browser launcher of the panel opens Google Chrome with a debugging port, so the script can follow
+          # the pages while the downloads stay the normal ones of Chrome
+          asuser mkdir -p /home/user/.local/share/xfce4/helpers /home/user/.config/xfce4
+          printf '[Desktop Entry]\nType=X-XFCE-Helper\nX-XFCE-Category=WebBrowser\nName=Google Chrome\nIcon=google-chrome\nX-XFCE-Binaries=google-chrome;\nX-XFCE-Commands=google-chrome --remote-debugging-port=9222 --no-first-run --no-default-browser-check --start-maximized;\nX-XFCE-CommandsWithParameter=google-chrome --remote-debugging-port=9222 --no-first-run --no-default-browser-check --start-maximized "%%s";\n' \
+            | asuser tee /home/user/.local/share/xfce4/helpers/custom-WebBrowser.desktop > /dev/null
+          echo 'WebBrowser=custom-WebBrowser' | asuser tee /home/user/.config/xfce4/helpers.rc > /dev/null
           # default panel, without the question at the first start
           asuser mkdir -p /home/user/.config/xfce4/xfconf/xfce-perchannel-xml
           asuser cp /etc/xdg/xfce4/panel/default.xml /home/user/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml

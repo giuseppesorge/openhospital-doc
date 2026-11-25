@@ -17,6 +17,7 @@ import sys
 import time
 
 SIZE = os.environ.get('SIZE', '1280x800')
+BROWSER_ICON = (663, 776)  # Web Browser launcher in the default XFCE panel at 1280x800
 DISPLAY = os.environ['DISPLAY']
 
 
@@ -152,11 +153,18 @@ def linux_portable(d, ver):
 
     with sync_playwright() as p:
         d.caption('Open the web browser and go to open-hospital.org.', 0.5)
-        browser = p.chromium.launch(channel='chrome', headless=False,
-                                    args=['--start-maximized', '--no-first-run', '--no-default-browser-check', '--test-type'])
-        ctx = browser.new_context(no_viewport=True, accept_downloads=True)
-        page = ctx.new_page()
-        time.sleep(3)
+        d.click(BROWSER_ICON)  # Web Browser in the bottom panel: Chrome with a debugging port (see the workflow)
+        for _ in range(60):
+            try:
+                browser = p.chromium.connect_over_cdp('http://127.0.0.1:9222')
+                break
+            except Exception:
+                time.sleep(1)
+        ctx = browser.contexts[0]
+        page = ctx.pages[0] if ctx.pages else ctx.new_page()
+        # Playwright takes over the downloads when it connects: give them back to Chrome
+        browser.new_browser_cdp_session().send('Browser.setDownloadBehavior', {'behavior': 'default'})
+        time.sleep(2)
         d.key('ctrl+l')
         d.type('www.open-hospital.org')
         d.key('Return')
@@ -188,32 +196,16 @@ def linux_portable(d, ver):
             run('xdotool', 'click', '5')
             time.sleep(0.25)
         time.sleep(1)
-        got = []  # the link may open a new tab: listen to every page
-        def keep(download):
-            got.append(download)
-
-        ctx.on('page', lambda pg: pg.on('download', keep))
-        for pg in ctx.pages:
-            pg.on('download', keep)
-        xy = at(link)
-        print('link', link.bounding_box(), 'screen', xy, flush=True)
-        d.click(xy)
-        for _ in range(3):
-            if got:
+        d.click(at(link))
+        target = f'{downloads}/{pkg}.tar.gz'
+        for _ in range(600):
+            if os.path.exists(target) and not os.path.exists(target + '.crdownload'):
                 break
             time.sleep(1)
-        if not got:  # the real click starts a download of Chrome that Playwright does not see: repeat it through Playwright
-            link.click()
-            for _ in range(60):
-                if got:
-                    break
-                time.sleep(1)
-        if not got:
-            raise RuntimeError('the download did not start')
-        got[0].save_as(f'{downloads}/{pkg}.tar.gz')
+        else:
+            raise RuntimeError('the download did not finish')
         time.sleep(2)
-        d.caption('The package is in the Downloads folder.', 1)
-        browser.close()
+        d.caption('The package is in the Downloads folder.', 2)
 
     d.caption('Open your home folder, then Downloads.', 0.5)
     d.click('Home', double=True)
