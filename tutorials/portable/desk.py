@@ -194,11 +194,22 @@ def linux_portable(d, ver):
         ctx.on('page', lambda pg: pg.on('download', keep))
         for pg in ctx.pages:
             pg.on('download', keep)
-        d.click(at(link))
-        for _ in range(600):
+        xy = at(link)
+        print('link', link.bounding_box(), 'screen', xy, flush=True)
+        d.click(xy)
+        for _ in range(20):
             if got:
                 break
             time.sleep(1)
+        d.shot(f'{d.out}/afterclick.png')
+        print('pages', [pg.url for pg in ctx.pages], 'got', len(got), flush=True)
+        if not got:
+            print('no download from the real click, trying the click of Playwright', flush=True)
+            link.click()
+            for _ in range(60):
+                if got:
+                    break
+                time.sleep(1)
         if not got:
             raise RuntimeError('the download did not start')
         got[0].save_as(f'{downloads}/{pkg}.tar.gz')
