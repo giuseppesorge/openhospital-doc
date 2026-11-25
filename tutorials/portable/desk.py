@@ -180,8 +180,12 @@ def linux_portable(d, ver):
                     round(sy + oh - ih + box['y'] + box['height'] / 2))
 
         cookie = page.locator('.iubenda-cs-close-btn').first
-        if cookie.count() and cookie.is_visible():
+        try:  # the cookie banner shows up a moment after the page
+            cookie.wait_for(state='visible', timeout=8000)
+            time.sleep(1)
             d.click(at(cookie))
+        except Exception:
+            pass
         d.caption('Click DOWNLOAD.')
         d.click(at(page.locator('header a[href*="/download"]:visible').first))
         page.wait_for_load_state('domcontentloaded')

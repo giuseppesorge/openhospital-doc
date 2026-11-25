@@ -207,8 +207,12 @@ def run(ver, out):
                     round((sy + oh - ih + box['y'] + box['height'] / 2) * dpr))
 
         cookie = page.locator('.iubenda-cs-close-btn').first
-        if cookie.count() and cookie.is_visible():
+        try:  # the cookie banner shows up a moment after the page
+            cookie.wait_for(state='visible', timeout=8000)
+            time.sleep(1)
             click(at(cookie))
+        except Exception:
+            pass
         r.caption('Click DOWNLOAD.')
         click(at(page.locator('header a[href*="/download"]:visible').first))
         page.wait_for_load_state('domcontentloaded')
@@ -270,6 +274,13 @@ def run(ver, out):
                     if cell.window_text() == 'Type' and 'Batch' in str(cell.legacy_properties().get('Value', '')):
                         return item
     click(wait(launcher, 30, 'oh.bat'), double=True)
+    try:  # a file downloaded from the internet: Windows asks before running it
+        warning = window('Open File - Security Warning', 15)
+        time.sleep(1)
+        r.caption('Windows warns that the file comes from the internet. Click Run.', 1)
+        click(find(warning, 10, title='Run', control_type='Button'))
+    except RuntimeError:
+        pass
     window('.*(oh.bat|cmd.exe|PowerShell|powershell).*', 60).set_focus()
     time.sleep(4)
     r.caption('The menu shows version, language and mode. Press Enter to start.', 3)
