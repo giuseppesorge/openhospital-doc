@@ -51,8 +51,11 @@ jobs:
         env:
           VERSION: ${{ inputs.version || '1.15.2' }}
         run: |
-          mkdir -p out && chmod 777 out
-          sudo -u user -H env DISPLAY=:99 python3 tutorials/portable/desk.py linux-portable "$VERSION" out/linux-portable
+          # the home of the runner is closed to other users: script and output go through /srv/tut
+          sudo mkdir -p /srv/tut && sudo cp tutorials/portable/desk.py /srv/tut/ && sudo chown -R user /srv/tut
+          sudo -u user -H env DISPLAY=:99 python3 /srv/tut/desk.py linux-portable "$VERSION" /srv/tut/out || status=$?
+          mkdir -p out && cp -r /srv/tut/out out/linux-portable
+          exit ${status:-0}
 
       - name: Add the music
         run: |
