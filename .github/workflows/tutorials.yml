@@ -57,7 +57,7 @@ jobs:
           for i in $(seq 60); do docker exec ohdb $sql -e 'select 1' >/dev/null 2>&1 && break; sleep 2; done
           docker cp ../oh-core/sql ohdb:/sql
           docker exec ohdb sh -c "cd /sql && $sql < create_all_demo.sql"
-          docker exec ohdb $sql -e 'select count(*) as patients from patient'
+          docker exec ohdb $sql -e 'select count(*) as patients from oh_patient'
 
       - name: Build core, api and gui
         run: |
