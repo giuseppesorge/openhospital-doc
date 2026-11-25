@@ -28,6 +28,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg xvfb fluxbox xterm xdotool wmctrl bc fonts-dejavu libaio1t64
           # the MariaDB of the portable package looks for the old name of libaio
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+          # the runner has MySQL installed: its /etc/mysql/my.cnf (user=mysql) is read by mysql_install_db too
+          sudo mv /etc/mysql /etc/mysql.runner
 
       - name: Record
         env:
