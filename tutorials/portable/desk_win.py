@@ -244,7 +244,7 @@ def run(ver, out):
     explorer.maximize()
     time.sleep(1.5)
     click(find(explorer, 20, title_re=r'Downloads( \(pinned\))?', control_type='TreeItem', found_index=0))
-    explorer = window('Downloads.*', 30)
+    explorer = window('Downloads( - File Explorer)?', 30)
     time.sleep(1.5)
     r.caption('Right-click the package and choose Extract All.', 0.5)
     item = find(explorer, 30, title_re=re.escape(pkg) + r'(\.zip)?', control_type='ListItem')
@@ -254,8 +254,10 @@ def run(ver, out):
     time.sleep(1.5)
     r.caption('Click Extract. It takes a minute.', 0.5)
     click(find(dialog, 15, title='Extract', control_type='Button'))
-    folder = window(re.escape(pkg), 900)  # opens by itself at the end
-    time.sleep(2)
+    folder = window(re.escape(pkg) + '( - File Explorer)?', 900)  # opens by itself at the end
+    time.sleep(1)
+    folder.maximize()
+    time.sleep(1.5)
     r.caption('Open the folder inside.', 0.5)
     click(find(folder, 30, title=pkg, control_type='ListItem'), double=True)
     find(folder, 30, title_re='RELEASE_NOTES.*', control_type='ListItem')
