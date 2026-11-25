@@ -108,6 +108,35 @@ def slow(text):
     time.sleep(0.4)
 
 
+TESSERACT = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+
+def ocr(text, timeout=20, out='.'):
+    """Centre of a text on the screen, read with tesseract: Swing windows are not visible to UI Automation."""
+    import csv
+    import io
+    want = text.lower().split()
+    end = time.time() + timeout
+    shot = os.path.join(out, 'ocr.png')
+    while True:
+        subprocess.run(['ffmpeg', '-loglevel', 'error', '-f', 'gdigrab', '-i', 'desktop', '-frames:v', '1',
+                        '-vf', 'scale=iw*2:ih*2,format=gray', '-y', shot], check=True)
+        tsv = subprocess.run([TESSERACT, shot, '-', '--psm', '11', 'tsv'], capture_output=True).stdout.decode(errors='replace')
+        words = [w for w in csv.DictReader(io.StringIO(tsv), delimiter='\t', quoting=csv.QUOTE_NONE)
+                 if (w.get('text') or '').strip() and float(w['conf']) > 30]
+        for i in range(len(words)):
+            got = words[i:i + len(want)]
+            if len(got) == len(want) and all(g['text'].lower().startswith(w) for g, w in zip(got, want)):
+                x1 = min(int(g['left']) for g in got)
+                y1 = min(int(g['top']) for g in got)
+                x2 = max(int(g['left']) + int(g['width']) for g in got)
+                y2 = max(int(g['top']) + int(g['height']) for g in got)
+                return (x1 + x2) // 4, (y1 + y2) // 4
+        if time.time() > end:
+            raise RuntimeError(f'text not found on screen: {text}')
+        time.sleep(1)
+
+
 def wait(fn, timeout, what):
     end = time.time() + timeout
     while time.time() < end:
@@ -275,7 +304,8 @@ def run(ver, out):
                         return item
     click(wait(launcher, 30, 'oh.bat'), double=True)
     try:  # a file downloaded from the internet: Windows asks before running it
-        warning = window('Open File - Security Warning', 15)
+        swing('Open File - Security Warning', 15)  # not among the top windows of UI Automation: by its handle
+        warning = uia.window(handle=user32.FindWindowW(None, 'Open File - Security Warning'))
         time.sleep(1)
         r.caption('Windows warns that the file comes from the internet. Click Run.', 1)
         click(find(warning, 10, title='Run', control_type='Button'))
@@ -301,17 +331,19 @@ def run(ver, out):
     time.sleep(2)
     activate('Login')
     r.caption('Log in. The first user is admin, with password admin.')
+    x, y = ocr('User:', out=out)  # the fields are on the right of their labels
+    click((x + 110, y))
     slow('admin')
-    keys('{TAB}')
+    x, y = ocr('Password:', out=out)
+    click((x + 110, y))
     slow('admin')
-    time.sleep(1)
-    keys('{ENTER}')
+    time.sleep(0.5)
+    click(ocr('Submit', out=out))
     try:
         swing('Help us improve Open Hospital', 40)
-        time.sleep(1)
-        r.caption('Open Hospital asks whether it may send anonymous usage data. Choose one of the options.', 4)
-        activate('Help us improve Open Hospital')
-        keys('%{F4}')
+        time.sleep(1.5)
+        r.caption('Open Hospital asks whether it may send anonymous usage data. Here we choose Ask me later.', 2)
+        click(ocr('Ask me later', out=out))
     except RuntimeError:
         pass
     swing('OH', 60)

@@ -250,16 +250,19 @@ def linux_portable(d, ver):
     d.window('Login', 300)
     time.sleep(2)
     d.caption('Log in. The first user is admin, with password admin.')
+    x, y = d.find('User:')  # the fields are on the right of their labels
+    d.click((x + 110, y))
     d.type('admin')
-    d.key('Tab')
+    x, y = d.find('Password:')
+    d.click((x + 110, y))
     d.type('admin')
-    time.sleep(1)
-    d.key('Return')
+    time.sleep(0.5)
+    d.click('Submit')
     try:
         d.window('Help us improve Open Hospital', 30)
-        time.sleep(1)
-        d.caption('Open Hospital asks whether it may send anonymous usage data. Choose one of the options.', 4)
-        run('wmctrl', '-c', 'Help us improve Open Hospital')
+        time.sleep(1.5)
+        d.caption('Open Hospital asks whether it may send anonymous usage data. Here we choose Ask me later.', 2)
+        d.click('Ask me later')
     except RuntimeError:
         pass
     d.window('OH', 60)

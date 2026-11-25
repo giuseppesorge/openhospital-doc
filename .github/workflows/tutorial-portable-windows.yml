@@ -26,7 +26,7 @@ jobs:
       - name: Prepare the desktop
         shell: powershell
         run: |
-          choco install ffmpeg -y --no-progress | Out-Null
+          choco install ffmpeg tesseract -y --no-progress | Out-Null
           pip install -q pywinauto playwright
           # file names with their extension, so oh.bat is told apart from oh.ps1 and the oh folder
           Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced' HideFileExt 0
