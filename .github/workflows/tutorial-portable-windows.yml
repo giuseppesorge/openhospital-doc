@@ -89,7 +89,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu bc
           mkdir -p videos
-          python3 -I tutorials/portable/cut.py raw/raw.mp4 raw/windows-portable.en.vtt raw/waits.txt raw/captioned.mp4 videos/windows-portable.en.vtt
+          python3 -I tutorials/portable/cut.py raw/raw.mp4 raw/windows-portable.en.vtt raw/waits.txt raw/captioned.mp4 videos/windows-portable.en.vtt raw/pointer.txt
           sh tutorials/music/add_music.sh raw/captioned.mp4 videos/windows-portable.mp4 happy
 
       - name: Upload

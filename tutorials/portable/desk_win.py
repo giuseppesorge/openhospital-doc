@@ -2,7 +2,8 @@
 
 Windows, buttons, links and files are found by their name with UI Automation (pywinauto), then the real pointer
 moves there and clicks. The Swing windows of Open Hospital are found by their title. Writes raw.mp4, the captions
-(vtt), the waits to cut (waits.txt) and one screenshot per step; cut.py and the music make the final video on Linux.
+(vtt), the waits to cut (waits.txt), the pointer positions (pointer.txt) and one screenshot per step; cut.py and the
+music make the final video on Linux. The runner has no mouse, so Windows hides the pointer: cut.py draws it.
 
 Usage: python desk_win.py <version> <out dir>
 Needs: ffmpeg (gdigrab), pywinauto.
@@ -13,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from contextlib import contextmanager
 
@@ -35,7 +37,19 @@ class Rec:
                                       '-i', 'desktop', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
                                       '-y', os.path.join(self.out, 'raw.mp4')], stdin=subprocess.PIPE)
         self.t0 = time.time()
+        self.track = []
+        threading.Thread(target=self.follow, daemon=True).start()
         time.sleep(1.5)
+
+    def follow(self):
+        """Pointer position every 20 ms, while recording."""
+        last = None
+        while self.proc and self.proc.poll() is None:
+            p = pointer()
+            if p != last:
+                self.track.append((time.time() - self.t0, *p))
+                last = p
+            time.sleep(0.02)
 
     def shot(self, name):
         subprocess.run(['ffmpeg', '-loglevel', 'error', '-f', 'gdigrab', '-i', 'desktop', '-frames:v', '1', '-y',
@@ -70,6 +84,8 @@ class Rec:
             f.write('WEBVTT\n\n' + body('.'))
         with open(os.path.join(self.out, 'waits.txt'), 'w', encoding='utf-8') as f:
             f.write(''.join(f'{a:.3f} {b:.3f}\n' for a, b in self.waits))
+        with open(os.path.join(self.out, 'pointer.txt'), 'w', encoding='utf-8') as f:
+            f.write(''.join(f'{t:.3f} {x} {y}\n' for t, x, y in self.track))
 
 
 def pointer():
