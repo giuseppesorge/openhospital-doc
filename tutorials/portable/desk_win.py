@@ -2,7 +2,7 @@
 
 Windows, buttons, links and files are found by their name with UI Automation (pywinauto), then the real pointer
 moves there and clicks. The Swing windows of Open Hospital are found by their title. Writes raw.mp4, the captions
-(vtt and srt) and one screenshot per step; captions and music are added afterwards on Linux.
+(vtt), the waits to cut (waits.txt) and one screenshot per step; cut.py and the music make the final video on Linux.
 
 Usage: python desk_win.py <version> <out dir>
 Needs: ffmpeg (gdigrab), pywinauto.
@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 
 from pywinauto import Desktop, keyboard
 
@@ -27,7 +28,7 @@ class Rec:
     def __init__(self, out):
         self.out = out
         os.makedirs(out, exist_ok=True)
-        self.cues, self.cur, self.n, self.proc = [], None, 0, None
+        self.cues, self.cur, self.n, self.proc, self.waits = [], None, 0, None, []
 
     def start(self):
         self.proc = subprocess.Popen(['ffmpeg', '-loglevel', 'error', '-f', 'gdigrab', '-draw_mouse', '1', '-framerate', '25',
@@ -49,6 +50,13 @@ class Rec:
         self.shot(f'step{self.n:02d}.png')
         time.sleep(hold)
 
+    @contextmanager
+    def waiting(self):
+        """A wait where nothing happens on the screen: cut.py shortens it to a few seconds."""
+        a = time.time() - self.t0
+        yield
+        self.waits.append((a, time.time() - self.t0))
+
     def stop(self, name):
         self.caption('', 0)
         if self.proc:
@@ -60,8 +68,8 @@ class Rec:
         body = lambda sep: ''.join(f'{i}\n{ts(a, sep)} --> {ts(b, sep)}\n{t}\n\n' for i, (a, b, t) in enumerate(self.cues, 1))
         with open(os.path.join(self.out, f'{name}.en.vtt'), 'w', encoding='utf-8') as f:
             f.write('WEBVTT\n\n' + body('.'))
-        with open(os.path.join(self.out, f'{name}.srt'), 'w', encoding='utf-8') as f:
-            f.write(body(','))
+        with open(os.path.join(self.out, 'waits.txt'), 'w', encoding='utf-8') as f:
+            f.write(''.join(f'{a:.3f} {b:.3f}\n' for a, b in self.waits))
 
 
 def pointer():
@@ -214,7 +222,8 @@ def run(ver, out):
                 return p.chromium.connect_over_cdp('http://127.0.0.1:9222')
             except Exception:
                 return None
-        cdp = wait(connect, 60, 'Edge with the debugging port')
+        with r.waiting():
+            cdp = wait(connect, 60, 'Edge with the debugging port')
         ctx = cdp.contexts[0]
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         # Playwright takes over the downloads when it connects: give them back to Edge
@@ -261,7 +270,8 @@ def run(ver, out):
         time.sleep(1)
         click(at(link))
         target = os.path.join(downloads, name)
-        wait(lambda: os.path.exists(target) and not any(f.endswith('.crdownload') for f in os.listdir(downloads)), 600, 'download')
+        with r.waiting():
+            wait(lambda: os.path.exists(target) and not any(f.endswith('.crdownload') for f in os.listdir(downloads)), 600, 'download')
         time.sleep(2)
         r.caption('The package is in the Downloads folder. Close the browser.', 2)
         browser.set_focus()
@@ -289,7 +299,8 @@ def run(ver, out):
     time.sleep(1.5)
     r.caption('Click Extract. It takes a minute.', 0.5)
     click(find(dialog, 15, title='Extract', control_type='Button'))
-    folder = window(re.escape(pkg) + '( - File Explorer)?', 900)  # opens by itself at the end
+    with r.waiting():
+        folder = window(re.escape(pkg) + '( - File Explorer)?', 900)  # opens by itself at the end
     time.sleep(1)
     folder.maximize()
     time.sleep(1.5)
@@ -317,19 +328,22 @@ def run(ver, out):
     time.sleep(4)
     r.caption('The menu shows version, language and mode. Press Enter to start.', 3)
     keys('{ENTER}')
-    r.caption('The first start creates the database, then the application opens.', 0)
+    creating = 'The first start creates the database: it can take a minute or two. Then the application opens.'
+    r.caption(creating, 0)
     end = time.time() + 600
     while 'Login' not in top_titles():  # the firewall may ask about MariaDB or Java on the way
+        with r.waiting():
+            while 'Login' not in top_titles() and not any(t.startswith('Windows Security') for t in top_titles()):
+                if time.time() > end:
+                    raise RuntimeError('not found: window Login')
+                time.sleep(1)
         alert = next((t for t in top_titles() if t.startswith('Windows Security')), None)
         if alert:
             time.sleep(1)
             r.caption('Windows asks whether Open Hospital may use the network. Click Allow.', 1)
             dialog = window(re.escape(alert), 10)
             click(find(dialog, 15, title_re='Allow.*', control_type='Button', found_index=0))
-            r.caption('The first start creates the database, then the application opens.', 0)
-        if time.time() > end:
-            raise RuntimeError('not found: window Login')
-        time.sleep(1)
+            r.caption(creating, 0)
     time.sleep(2)
     activate('Login')
     r.caption('Log in. The first user is admin, with password admin.')

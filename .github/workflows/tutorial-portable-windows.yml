@@ -9,6 +9,7 @@ on:
       - 'OP-1582-**'
     paths:
       - 'tutorials/portable/desk_win.py'
+      - 'tutorials/portable/cut.py'
       - '.github/workflows/tutorial-portable-windows.yml'
   workflow_dispatch:
     inputs:
@@ -84,17 +85,12 @@ jobs:
           name: windows-raw
           path: raw
 
-      - name: Captions and music
+      - name: Shorter waits, captions and music
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu bc
           mkdir -p videos
-          cd raw
-          ffmpeg -loglevel error -i raw.mp4 \
-            -vf "subtitles=windows-portable.srt:force_style='FontName=DejaVu Sans,FontSize=15,BorderStyle=4,BackColour=&H30000000,Outline=6,Shadow=0,MarginV=40'" \
-            -c:v libx264 -pix_fmt yuv420p -movflags +faststart -y captioned.mp4
-          cd ..
+          python3 -I tutorials/portable/cut.py raw/raw.mp4 raw/windows-portable.en.vtt raw/waits.txt raw/captioned.mp4 videos/windows-portable.en.vtt
           sh tutorials/music/add_music.sh raw/captioned.mp4 videos/windows-portable.mp4 happy
-          cp raw/windows-portable.en.vtt videos/
 
       - name: Upload
         uses: actions/upload-artifact@v4

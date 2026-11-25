@@ -9,6 +9,7 @@ on:
       - 'OP-1582-**'
     paths:
       - 'tutorials/portable/desk.py'
+      - 'tutorials/portable/cut.py'
       - '.github/workflows/tutorial-portable.yml'
   workflow_dispatch:
     inputs:
@@ -74,11 +75,12 @@ jobs:
           mkdir -p out && cp -r /srv/tut/out out/linux-portable
           exit ${status:-0}
 
-      - name: Add the music
+      - name: Shorter waits, captions and music
         run: |
           mkdir -p videos
-          sh tutorials/music/add_music.sh out/linux-portable/linux-portable.mp4 videos/linux-portable.mp4 happy
-          cp out/linux-portable/linux-portable.en.vtt videos/
+          d=out/linux-portable
+          python3 -I tutorials/portable/cut.py $d/raw.mp4 $d/linux-portable.en.vtt $d/waits.txt $d/captioned.mp4 videos/linux-portable.en.vtt
+          sh tutorials/music/add_music.sh $d/captioned.mp4 videos/linux-portable.mp4 happy
 
       - name: Upload
         if: always()

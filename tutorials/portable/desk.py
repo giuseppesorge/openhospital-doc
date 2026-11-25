@@ -3,7 +3,8 @@
 
 Things on the screen are found by their text: in the browser through Playwright, everywhere else
 by reading the screen with tesseract. The pointer then moves there with xdotool, so the video shows
-what a person would do. Captions are written as WebVTT and burnt into the video at the end.
+what a person would do. Writes raw.mp4, the captions (vtt) and the waits to cut (waits.txt): cut.py
+makes the final video.
 
 Usage: desk.py linux-portable <version> <out dir>
 Needs: xdotool, wmctrl, ffmpeg (with libass), tesseract, Python playwright with Google Chrome.
@@ -15,6 +16,7 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 
 SIZE = os.environ.get('SIZE', '1280x800')
 BROWSER_ICON = (663, 776)  # Web Browser launcher in the default XFCE panel at 1280x800
@@ -33,6 +35,7 @@ class Desk:
         self.cur = None
         self.n = 0
         self.rec = None
+        self.waits = []
 
     # recording and captions
 
@@ -52,6 +55,13 @@ class Desk:
         self.shot(f'{self.out}/step{self.n:02d}.png')
         time.sleep(hold)
 
+    @contextmanager
+    def waiting(self):
+        """A wait where nothing happens on the screen: cut.py shortens it to a few seconds."""
+        a = time.time() - self.t0
+        yield
+        self.waits.append((a, time.time() - self.t0))
+
     def stop(self, name):
         self.caption('', 0)
         assert self.rec
@@ -63,11 +73,8 @@ class Desk:
         body = lambda sep: ''.join(f'{i}\n{ts(a, sep)} --> {ts(b, sep)}\n{t}\n\n' for i, (a, b, t) in enumerate(self.cues, 1))
         with open(f'{self.out}/{name}.en.vtt', 'w') as f:
             f.write('WEBVTT\n\n' + body('.'))
-        with open(f'{self.out}/{name}.srt', 'w') as f:
-            f.write(body(','))
-        style = "FontName=DejaVu Sans,FontSize=15,BorderStyle=4,BackColour=&H30000000,Outline=6,Shadow=0,MarginV=40"
-        run('ffmpeg', '-loglevel', 'error', '-i', f'{self.out}/raw.mp4', '-vf', f"subtitles={self.out}/{name}.srt:force_style='{style}'",
-            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-y', f'{self.out}/{name}.mp4')
+        with open(f'{self.out}/waits.txt', 'w') as f:
+            f.write(''.join(f'{a:.3f} {b:.3f}\n' for a, b in self.waits))
 
     def shot(self, path):
         run('ffmpeg', '-loglevel', 'error', '-f', 'x11grab', '-video_size', SIZE, '-i', DISPLAY, '-frames:v', '1', '-y', path)
@@ -154,12 +161,13 @@ def linux_portable(d, ver):
     with sync_playwright() as p:
         d.caption('Open the web browser and go to open-hospital.org.', 0.5)
         d.click(BROWSER_ICON)  # Web Browser in the bottom panel: Chrome with a debugging port (see the workflow)
-        for _ in range(60):
-            try:
-                browser = p.chromium.connect_over_cdp('http://127.0.0.1:9222')
-                break
-            except Exception:
-                time.sleep(1)
+        with d.waiting():
+            for _ in range(60):
+                try:
+                    browser = p.chromium.connect_over_cdp('http://127.0.0.1:9222')
+                    break
+                except Exception:
+                    time.sleep(1)
         ctx = browser.contexts[0]
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         # Playwright takes over the downloads when it connects: give them back to Chrome
@@ -202,12 +210,13 @@ def linux_portable(d, ver):
         time.sleep(1)
         d.click(at(link))
         target = f'{downloads}/{pkg}.tar.gz'
-        for _ in range(600):
-            if os.path.exists(target) and not os.path.exists(target + '.crdownload'):
-                break
-            time.sleep(1)
-        else:
-            raise RuntimeError('the download did not finish')
+        with d.waiting():
+            for _ in range(600):
+                if os.path.exists(target) and not os.path.exists(target + '.crdownload'):
+                    break
+                time.sleep(1)
+            else:
+                raise RuntimeError('the download did not finish')
         time.sleep(2)
         d.caption('The package is in the Downloads folder. Close the browser.', 2)
         d.key('ctrl+shift+w')
@@ -224,10 +233,11 @@ def linux_portable(d, ver):
     d.caption('Right-click the package and choose Extract Here.', 0.5)
     d.click('OpenHospital', button=3)
     d.click('Extract Here')
-    for _ in range(180):  # the name wraps on several lines under the icon: wait on the disk
-        if os.path.exists(f'{downloads}/{pkg}/oh.sh') and subprocess.run(['pgrep', 'xarchiver'], capture_output=True).returncode:
-            break
-        time.sleep(1)
+    with d.waiting():
+        for _ in range(180):  # the name wraps on several lines under the icon: wait on the disk
+            if os.path.exists(f'{downloads}/{pkg}/oh.sh') and subprocess.run(['pgrep', 'xarchiver'], capture_output=True).returncode:
+                break
+            time.sleep(1)
     time.sleep(2)
     d.caption('Open the new folder.', 0.5)
     d.click(d.find('OpenHospital'), double=True)
@@ -246,8 +256,9 @@ def linux_portable(d, ver):
     time.sleep(3)
     d.caption('The menu shows version, language and mode. Press Enter to start.', 3)
     d.key('Return')
-    d.caption('The first start creates the database, then the application opens.', 0)
-    d.window('Login', 300)
+    d.caption('The first start creates the database: it can take a minute or two. Then the application opens.', 0)
+    with d.waiting():
+        d.window('Login', 300)
     time.sleep(2)
     d.caption('Log in. The first user is admin, with password admin.')
     x, y = d.find('User:')  # the fields are on the right of their labels
