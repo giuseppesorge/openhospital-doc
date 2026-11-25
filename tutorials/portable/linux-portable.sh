@@ -11,7 +11,8 @@ id=linux-portable
 pkg=OpenHospital-v$ver-linux_x86_64-portable
 url=https://github.com/informatici/openhospital/releases/download/v$ver/$pkg.tar.gz
 mkdir -p "$out"
-work=$(mktemp -d)
+work=$HOME/Downloads
+mkdir -p "$work"
 cd "$work"
 
 titles() { wmctrl -l | cut -d' ' -f5-; }
@@ -40,7 +41,7 @@ key() { xdotool key "$@"; sleep 0.4; }
 # on failure keep a picture of the screen and close the recording
 trap 'cp "$work"/*/data/log/*.log "$out"/ 2>/dev/null; ffmpeg -loglevel error -f x11grab -video_size "$size" -i "$DISPLAY" -frames:v 1 -y "$out/failed.png"; kill -INT "${rec:-0}" 2>/dev/null' ERR
 
-xterm -xrm 'XTerm*allowTitleOps: false' -fa 'DejaVu Sans Mono' -fs 13 -geometry 110x34+40+30 -title Terminal &
+xterm -xrm 'XTerm*allowTitleOps: false' -fa 'DejaVu Sans Mono' -fs 13 -geometry 110x34+40+30 -title Terminal -e env PS1='$ ' bash --norc &
 waitwin Terminal
 xdotool search --name '^Terminal$' windowactivate --sync
 sleep 1
@@ -72,7 +73,7 @@ key Return
 sleep 3
 cap "The menu shows version, language and mode. Press Enter to start." 3
 key Return
-cap "The first start sets up the database. It takes a minute or two." 0
+cap "The first start creates the database, then the application opens." 0
 waitwin Login 300
 sleep 2
 cap "Log in. The first user is admin, with password admin."
