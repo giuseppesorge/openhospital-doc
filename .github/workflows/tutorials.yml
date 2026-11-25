@@ -1,0 +1,157 @@
+# Records the video tutorials from the scenarios in tutorials/scenarios (trial for OP-1582).
+# Web scenarios run with Playwright against api and web UI, desktop scenarios with TutorialDesktop under Xvfb.
+# All of them use a database with the demo data of core.
+
+name: Video tutorials
+
+on:
+  push:
+    branches:
+      - 'OP-1582-**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or tag of core, api, gui and ui'
+        default: develop
+
+env:
+  MAVEN_ARGS: '-B -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn'
+  REF: ${{ inputs.ref || 'develop' }}
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install ffmpeg, Xvfb and a window manager
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg xvfb fluxbox fonts-dejavu
+
+      - name: Clone core, api, gui and ui
+        run: |
+          for r in core api gui ui; do
+            git clone -q --depth=1 --branch "$REF" https://github.com/informatici/openhospital-$r.git ../oh-$r
+          done
+
+      - name: Database with the demo data
+        run: |
+          docker run -d --name ohdb -p 3306:3306 \
+            -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=oh -e MARIADB_USER=isf -e MARIADB_PASSWORD=isf123 \
+            mariadb:10.6 --lower_case_table_names=1 --explicit_defaults_for_timestamp=OFF
+          for i in $(seq 60); do docker exec ohdb mariadb -uroot -proot -e 'select 1' oh >/dev/null 2>&1 && break; sleep 2; done
+          docker cp ../oh-core/sql ohdb:/sql
+          docker exec ohdb sh -c 'cd /sql && mariadb -uroot -proot oh < create_all_demo.sql'
+          docker exec ohdb mariadb -uroot -proot -e 'select count(*) as patients from patient' oh
+
+      - name: Build core, api and gui
+        run: |
+          (cd ../oh-core && mvn install -DskipTests)
+          (cd ../oh-api && mvn package -DskipTests)
+          (cd ../oh-gui && mvn package -DskipTests)
+
+      - name: Start api
+        working-directory: ../oh-api/target
+        run: |
+          mkdir -p rsc
+          db='s/DBSERVER/localhost/g; s/DBPORT/3306/g; s/DBNAME/oh/g; s/DBUSER/isf/g; s/DBPASS/isf123/g'
+          sed -e 's/JWT_TOKEN_SECRET/'"$(openssl rand -hex 48)"'/' -e 's/API_HOST/localhost/g' -e 's/API_PORT/8080/g' \
+            -e 's/UI_HOST/localhost/g' -e 's/UI_PORT/5173/g' -e 's#OH_API_PID#/tmp/api.pid#' \
+            ../rsc/application.properties.dist > rsc/application.properties
+          sed -e "$db" ../rsc/database.properties.dist > rsc/database.properties
+          sed -e "$db" -e 's#LOG_DEST#/tmp/api.log#' ../rsc/log4j2-spring.properties.dist > rsc/log4j2-spring.properties
+          sed -e 's/OH_MODE/PRODUCTION/; s/OH_LANGUAGE/en/; s/YES_OR_NO/no/; s#OH_DOC_DIR#/tmp/ohdoc#; s/PHOTO_DIR/DB/' \
+            ../rsc/settings.properties.dist > rsc/settings.properties
+          nohup java -cp "openhospital-api-0.1.0.jar:rsc/:static/" org.springframework.boot.loader.launch.JarLauncher > /tmp/api.out 2>&1 &
+          for i in $(seq 90); do curl -s -o /dev/null http://localhost:8080/ && break; sleep 2; done
+          curl -s -o /dev/null -w 'api %{http_code}\n' http://localhost:8080/
+
+      - name: Start web UI
+        working-directory: ../oh-ui
+        run: |
+          printf 'VITE_USE_MOCK_API=false\nVITE_ENABLE_PERMISSIONS=false\nVITE_API_BASE_URL=http://localhost:8080/\n' > .env.development.local
+          npm ci --no-audit --no-fund
+          nohup npx vite dev --port 5173 > /tmp/ui.out 2>&1 &
+          for i in $(seq 60); do curl -s -o /dev/null http://localhost:5173/oh-ui/ && break; sleep 2; done
+          curl -s -o /dev/null -w 'ui %{http_code}\n' http://localhost:5173/oh-ui/
+
+      - name: Record the web tutorials
+        working-directory: tutorials
+        env:
+          OH_UI_URL: http://localhost:5173/oh-ui/
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          for s in scenarios/*.json; do
+            case $s in scenarios/desktop-*) continue ;; esac
+            node run.mjs "$s" || echo "FAILED $s" >> failed.txt
+          done
+
+      - name: Record the desktop tutorials
+        working-directory: ../oh-gui/target/OpenHospital20
+        run: |
+          db='s/DBSERVER/localhost/g; s/DBPORT/3306/g; s/DBNAME/oh/g; s/DBUSER/isf/g; s/DBPASS/isf123/g'
+          for f in rsc/*.dist; do cp -n "$f" "${f%.dist}"; done
+          sed -i -e "$db" rsc/database.properties
+          sed -i -e "$db" -e 's#LOG_DEST#/tmp/gui.log#' rsc/log4j2-spring.properties
+          sed -i -e 's/OH_MODE/PRODUCTION/; s/OH_LANGUAGE/en/; s/YES_OR_NO/no/; s#OH_DOC_DIR#/tmp/ohdoc#; s/PHOTO_DIR/DB/' rsc/settings.properties
+          sed -i -e 's/DICOM_SIZE/4M/' rsc/dicom.properties
+          cp="bin/OH-gui.jar:bundle:rpt_base:rpt_extra:rpt_stat:rsc:rsc/images:lib/*"
+          javac -d /tmp/tut -cp "$cp" "$GITHUB_WORKSPACE/tutorials/desktop/TutorialDesktop.java"
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1600x1000x24 &
+          sleep 2
+          mkdir -p ~/.fluxbox && echo 'exec fluxbox' > ~/.fluxbox/startup
+          fluxbox > /dev/null 2>&1 &
+          sleep 3
+          pkill -x xmessage || true
+          tut=$GITHUB_WORKSPACE/tutorials
+          for s in "$tut"/scenarios/desktop-*.json; do
+            id=$(basename "$s" .json)
+            java -cp "$cp:/tmp/tut" TutorialDesktop "$s" "$tut/out/$id" \
+              && mv "$tut/out/$id/raw.mp4" "$tut/out/$id/$id.mp4" || echo "FAILED $s" >> "$tut/failed.txt"
+          done
+
+      - name: Cut the still start and add the music
+        working-directory: tutorials
+        run: |
+          mkdir -p videos
+          for d in out/*/; do
+            id=$(basename "$d")
+            [ -f "$d$id.mp4" ] || continue
+            python3 -I music/tighten.py "$d$id.mp4" "$d$id.en.vtt" "/tmp/$id.mp4" "videos/$id.en.vtt"
+            sh music/add_music.sh "/tmp/$id.mp4" "videos/$id.mp4" happy
+          done
+          ls -l videos
+          if [ -f failed.txt ]; then cat failed.txt; fi
+
+      - name: Upload videos and step screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorials
+          path: |
+            tutorials/videos
+            tutorials/out/*/step*.png
+            tutorials/failed.txt
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: /tmp/*.out

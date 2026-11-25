@@ -1,0 +1,15 @@
+{
+ "id": "desktop-search-patient",
+ "title": "Search a patient (desktop, manual 8.2.1)",
+ "data": "gui develop + core demo data",
+ "steps": [
+  {"caption": "Open Hospital desktop: how to search a patient (manual, 8.2.1).", "wait": "window:Login", "hold": 2500},
+  {"caption": "Log in with your username and password.", "type": {"field:0@Login": "admin", "field:1@Login": "admin"}, "click": "button:Submit@Login", "wait": "window:MainMenu"},
+  {"caption": "In the main menu, click Admission/Patient.", "click": "button:Admission/Patient@MainMenu", "wait": "window:AdmittedPatientBrowser"},
+  {"caption": "The Patient Browser shows all the patients in the system.", "point": "row:Frederick@AdmittedPatientBrowser", "hold": 3000},
+  {"caption": "Type part of the name or address in the Search Key field, for example Frederick.", "type": {"field:2@AdmittedPatientBrowser": "Frederick"}, "hold": 2000},
+  {"caption": "Only the matching patients are shown. Select the patient.", "click": "row:Justin@AdmittedPatientBrowser", "hold": 1500},
+  {"caption": "Click Edit to open the patient's data.", "click": "button:Edit@AdmittedPatientBrowser", "wait": "window:PatientInsertExtended", "hold": 4000},
+  {"caption": "The patient's data is open.", "hold": 3000}
+ ]
+}

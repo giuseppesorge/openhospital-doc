@@ -1,0 +1,56 @@
+{
+ "id": "search-patient-real",
+ "title": "Find a patient and open the record",
+ "steps": [
+  {
+   "caption": "Open Hospital web: how to find a patient and open the record.",
+   "wait": "#username",
+   "hold": 3000
+  },
+  {
+   "caption": "Log in with your username and password.",
+   "type": {
+    "#username": "admin",
+    "#password": "admin"
+   },
+   "click": "button:has-text('LOGIN')",
+   "waitUrl": "dashboard"
+  },
+  {
+   "caption": "From the menu, open Patients.",
+   "click": "text=Patients >> nth=0",
+   "waitUrl": "/patients"
+  },
+  {
+   "caption": "Choose Search patients.",
+   "click": "button:has-text('SEARCH PATIENTS')",
+   "waitUrl": "/patients/search"
+  },
+  {
+   "caption": "If you don't have the patient ID, fill in what you know, for example the surname.",
+   "type": {
+    "#secondName": "Frederick"
+   }
+  },
+  {
+   "caption": "Click Search.",
+   "click": ".searchPatient__panel button:has-text('Search') >> nth=-1",
+   "wait": ".patientSearchItem"
+  },
+  {
+   "caption": "Each result shows status, patient ID, birth date and address.",
+   "point": ".patientSearchItem >> nth=0",
+   "hold": 3500
+  },
+  {
+   "caption": "Click the patient to open the record.",
+   "click": ".patientSearchItem__panel >> nth=0",
+   "waitUrl": "/details"
+  },
+  {
+   "caption": "The patient record is open.",
+   "hold": 4000
+  }
+ ],
+ "data": "develop api + core demo data"
+}
