@@ -159,6 +159,11 @@ def activate(title):
 def run(ver, out):
     pkg = f'OpenHospital-v{ver}-windows_x86_64-portable'
     downloads = os.path.join(os.environ['USERPROFILE'], 'Downloads')
+    # the console of the runner agent stays open on the desktop: out of sight
+    for t in top_titles():
+        if 'HostedComputeAgent' in t:
+            user32.ShowWindow(user32.FindWindowW(None, t), 6)  # SW_MINIMIZE
+    time.sleep(1)
     r = Rec(out)
     r.start()
     r.caption('Open Hospital on Windows: download, install and start the portable package.', 3)
@@ -175,20 +180,22 @@ def run(ver, out):
         keys('{ENTER}')
     browser = window('.*Microsoft.*Edge.*', 60)
     browser.set_focus()
-    time.sleep(2)
+    time.sleep(1)
+    browser.maximize()
+    time.sleep(1.5)
     keys('^l')
     slow('www.open-hospital.org')
     keys('{ENTER}')
-    menu = find(browser, 60, title='DOWNLOAD', control_type='Hyperlink', found_index=0)
+    menu = find(browser, 60, title_re='(?i)download', control_type='Hyperlink', found_index=0)
     time.sleep(2)
-    close = browser.child_window(title='×', control_type='Hyperlink')
+    close = browser.child_window(title_re='[×xX]', control_type='Hyperlink', found_index=0)
     if close.exists(timeout=2):
         click(close.wrapper_object())
     r.caption('Click DOWNLOAD.')
     click(menu)
     name = f'{pkg}.zip'
     r.caption('Under the latest release, choose the portable package for Windows, 64 bit.', 0.5)
-    text = find(browser, 60, title=name, control_type='Text', found_index=0)
+    text = find(browser, 60, title_re=re.escape(name) + '.*', control_type='Text', found_index=0)
     move(W // 2, H // 2)
     for _ in range(80):  # scroll with the wheel until the link is well inside the window
         b, t = browser.rectangle(), text.rectangle()
