@@ -211,7 +211,7 @@ def linux_portable(d, ver):
 
     d.caption('Open your home folder, then Downloads.', 0.5)
     d.click(d.find('Home', region=(0, 30, 200, 300)), double=True)  # the icon on the desktop
-    d.window('user - Thunar', 30)
+    d.window('user( - Thunar)?', 30)
     time.sleep(1)
     d.key('alt+F10')  # maximize
     time.sleep(1)
