@@ -37,11 +37,13 @@ jobs:
       - name: Clean user with an XFCE session
         run: |
           sudo useradd -m -s /bin/bash user
+          # a neutral computer name for the terminal title
+          sudo hostname pc && echo '127.0.1.1 pc' | sudo tee -a /etc/hosts > /dev/null
           echo "PS1='user:\w\$ '" | sudo tee -a /home/user/.bashrc > /dev/null
           uid=$(id -u user)
           sudo install -d -o user -m 700 /run/user/$uid
           # runs a command as user with a clean environment (the one of the runner points to /home/runner)
-          printf '#!/bin/sh\nexec sudo -u user env -i HOME=/home/user USER=user LOGNAME=user SHELL=/bin/bash LANG=C.UTF-8 PATH=/usr/local/bin:/usr/bin:/bin DISPLAY=:99 XDG_RUNTIME_DIR=/run/user/%s "$@"\n' $uid \
+          printf '#!/bin/sh\nexec sudo -u user env -i HOME=/home/user USER=user LOGNAME=user SHELL=/bin/bash LANG=C.UTF-8 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DISPLAY=:99 XDG_RUNTIME_DIR=/run/user/%s "$@"\n' $uid \
             | sudo tee /usr/local/bin/asuser > /dev/null
           sudo chmod +x /usr/local/bin/asuser
           # default panel, without the question at the first start

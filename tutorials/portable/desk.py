@@ -238,7 +238,10 @@ def linux_portable(d, ver):
     x, y = d.find('oh.sh')
     d.click((x + 300, y + 200), button=3)
     d.click('Open Terminal Here')
-    time.sleep(2.5)
+    d.window('Terminal - .*', 30)
+    time.sleep(1)
+    d.key('alt+F10')  # maximize
+    time.sleep(1.5)
     d.caption('Start Open Hospital with ./oh.sh.')
     d.type('./oh.sh')
     d.key('Return')
