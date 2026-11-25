@@ -1,0 +1,88 @@
+# Records the tutorial on downloading, installing and starting the Windows portable package of a release
+# (trial for OP-1582) on the desktop of a Windows runner; captions and music are added on Linux.
+
+name: Video tutorial, Windows portable
+
+on:
+  push:
+    branches:
+      - 'OP-1582-**'
+    paths:
+      - 'tutorials/portable/desk_win.py'
+      - '.github/workflows/tutorial-portable-windows.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release, for example 1.15.2'
+        default: '1.15.2'
+
+jobs:
+  record:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare the desktop
+        shell: powershell
+        run: |
+          choco install ffmpeg -y --no-progress | Out-Null
+          pip install -q pywinauto
+          # Edge without first-run pages, news or questions on downloads
+          $edge = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge'
+          New-Item -Path $edge -Force | Out-Null
+          Set-ItemProperty $edge HideFirstRunExperience 1 -Type DWord
+          Set-ItemProperty $edge PromptForDownloadLocation 0 -Type DWord
+          Set-ItemProperty $edge DefaultBrowserSettingEnabled 0 -Type DWord
+          Set-ItemProperty $edge NewTabPageContentEnabled 0 -Type DWord
+          Set-ItemProperty $edge RestoreOnStartup 4 -Type DWord
+          New-Item -Path "$edge\RestoreOnStartupURLs" -Force | Out-Null
+          Set-ItemProperty "$edge\RestoreOnStartupURLs" 1 'about:blank'
+          # no firewall question when MariaDB and Java open their ports
+          Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+          Get-Process ServerManager -ErrorAction SilentlyContinue | Stop-Process -Force
+          try { Set-DisplayResolution -Width 1280 -Height 800 -Force } catch { Write-Host "resolution unchanged: $_" }
+
+      - name: Record
+        env:
+          VERSION: ${{ inputs.version || '1.15.2' }}
+        run: |
+          $env:Path = "C:\ProgramData\chocolatey\bin;$env:Path"
+          python tutorials/portable/desk_win.py $env:VERSION out/windows-portable
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-raw
+          path: out/windows-portable
+
+  finish:
+    needs: record
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-raw
+          path: raw
+
+      - name: Captions and music
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu bc
+          mkdir -p videos
+          cd raw
+          ffmpeg -loglevel error -i raw.mp4 \
+            -vf "subtitles=windows-portable.srt:force_style='FontName=DejaVu Sans,FontSize=15,BorderStyle=4,BackColour=&H30000000,Outline=6,Shadow=0,MarginV=40'" \
+            -c:v libx264 -pix_fmt yuv420p -movflags +faststart -y captioned.mp4
+          cd ..
+          sh tutorials/music/add_music.sh raw/captioned.mp4 videos/windows-portable.mp4 happy
+          cp raw/windows-portable.en.vtt videos/
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-windows-portable
+          path: videos
