@@ -27,7 +27,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg xvfb x11-xserver-utils dbus-x11 xdotool wmctrl \
-            xfce4 xfce4-terminal thunar thunar-archive-plugin xarchiver xfdesktop4 tesseract-ocr fonts-dejavu libaio1t64
+            xfce4 xfconf xfwm4 xfce4-panel xfce4-terminal thunar thunar-archive-plugin xarchiver xfdesktop4 tesseract-ocr fonts-dejavu libaio1t64
           # the MariaDB of the portable package looks for the old name of libaio
           sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
           # the runner has MySQL installed: its /etc/mysql/my.cnf (user=mysql) is read by mysql_install_db too
@@ -44,7 +44,9 @@ jobs:
           Xvfb :99 -screen 0 1280x800x24 &
           sleep 2
           DISPLAY=:99 xhost +SI:localuser:user
-          sudo -u user -H env DISPLAY=:99 dbus-launch --exit-with-session startxfce4 > /tmp/xfce.log 2>&1 &
+          # the pieces of an XFCE session in one D-Bus session (xfce4-session alone does not find xfconfd here)
+          sudo -u user -H env DISPLAY=:99 dbus-run-session -- sh -c \
+            'xfwm4 & sleep 1; xfce4-panel & xfdesktop & thunar --daemon & wait' > /tmp/xfce.log 2>&1 &
           sleep 10
 
       - name: Record
